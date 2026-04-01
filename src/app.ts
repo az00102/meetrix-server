@@ -12,7 +12,7 @@ const app = express()
 
 app.use(cookieParser())
 
-app.set("query parser", () => (str: string) => qs.parse(str))
+app.set("query parser", (str: string) => qs.parse(str))
 
 app.use(cors({
     origin: ["http://localhost:3000", "http://localhost:5000"],

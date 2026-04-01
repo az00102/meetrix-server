@@ -1,0 +1,172 @@
+model Event {
+  id              String             @id @default(cuid())
+  title           String
+  slug            String             @unique
+  summary         String?
+  description     String
+  startsAt        DateTime
+  endsAt          DateTime?
+  timezone        String             @default("UTC")
+  locationType    EventLocationType
+  venue           String?
+  eventLink       String?
+  visibility      EventVisibility
+  pricingType     EventPricingType
+  registrationFee Decimal            @default(0) @db.Decimal(10, 2)
+  currency        String             @default("BDT")
+  capacity        Int?
+  bannerImage     String?
+  isFeatured      Boolean            @default(false)
+  featuredAt      DateTime?
+  status          EventStatus        @default(DRAFT)
+  isDeleted       Boolean            @default(false)
+  deletedAt       DateTime?
+  ownerId         String
+  owner           User               @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  participants    EventParticipant[]
+  invitations     Invitation[]
+  payments        Payment[]
+  reviews         Review[]
+  notifications   Notification[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([ownerId])
+  @@index([status, startsAt])
+  @@index([visibility, pricingType, startsAt])
+  @@index([isFeatured, status])
+  @@map("event")
+}
+
+model EventParticipant {
+  id              String                @id @default(cuid())
+  eventId         String
+  event           Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinType        ParticipationJoinType
+  status          ParticipantStatus     @default(PENDING)
+  paymentStatus   PaymentStatus         @default(UNPAID)
+  approvalNote    String?
+  rejectionReason String?
+  approvedById    String?
+  approvedBy      User?                 @relation("ParticipantApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  respondedAt     DateTime?
+  approvedAt      DateTime?
+  joinedAt        DateTime?
+  bannedAt        DateTime?
+  payments        Payment[]
+  notifications   Notification[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId, status])
+  @@index([eventId, status])
+  @@index([eventId, paymentStatus])
+  @@map("event_participant")
+}
+
+model Invitation {
+  id            String           @id @default(cuid())
+  eventId       String
+  event         Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  inviteeId     String
+  invitee       User             @relation("InvitationRecipient", fields: [inviteeId], references: [id], onDelete: Cascade)
+  invitedById   String
+  invitedBy     User             @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  status        InvitationStatus @default(PENDING)
+  paymentStatus PaymentStatus    @default(UNPAID)
+  message       String?
+  expiresAt     DateTime?
+  respondedAt   DateTime?
+  acceptedAt    DateTime?
+  declinedAt    DateTime?
+  payments      Payment[]
+  notifications Notification[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([eventId, inviteeId])
+  @@index([inviteeId, status])
+  @@index([eventId, status])
+  @@map("invitation")
+}
+
+model Payment {
+  id                    String            @id @default(cuid())
+  userId                String
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  eventId               String
+  event                 Event             @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  participantId         String?
+  participant           EventParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  invitationId          String?
+  invitation            Invitation?       @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  provider              PaymentProvider
+  purpose               PaymentPurpose
+  amount                Decimal           @db.Decimal(10, 2)
+  currency              String            @default("BDT")
+  status                PaymentStatus     @default(PENDING)
+  providerTransactionId String?           @unique
+  gatewayStatus         String?
+  gatewayPayload        Json?
+  failureReason         String?
+  paidAt                DateTime?
+  refundedAt            DateTime?
+  expiresAt             DateTime?
+  notifications         Notification[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([userId, status])
+  @@index([eventId, status])
+  @@index([participantId])
+  @@index([invitationId])
+  @@map("payment")
+}
+
+model Review {
+  id        String       @id @default(cuid())
+  eventId   String
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  status    ReviewStatus @default(PUBLISHED)
+  deletedAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([eventId, status])
+  @@index([userId])
+  @@map("review")
+}
+
+model Notification {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          NotificationType
+  title         String
+  message       String
+  isRead        Boolean           @default(false)
+  readAt        DateTime?
+  metadata      Json?
+  eventId       String?
+  event         Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  invitationId  String?
+  invitation    Invitation?       @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  participantId String?
+  participant   EventParticipant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  paymentId     String?
+  payment       Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notification")
+}

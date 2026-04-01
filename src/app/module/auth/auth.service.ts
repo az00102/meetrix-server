@@ -1,4 +1,4 @@
-import { auth } from "../../lib/auth";
+import { auth, SESSION_EXPIRES_IN_MS } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import status from "http-status";
 import { envVars } from "../../../config/env";
@@ -60,11 +60,19 @@ const formatUserProfile = (user: {
     phone: string | null;
     bio: string | null;
     isDeleted: boolean;
-}) => {
-    const { isDeleted, ...profile } = user;
-
-    return profile;
-};
+}) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    image: user.image,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    role: user.role,
+    status: user.status,
+    phone: user.phone,
+    bio: user.bio,
+});
 
 const ensureUserCanAccessAccount = (user: {
     status: string;
@@ -152,9 +160,13 @@ const getNewToken = async (refreshToken: string, sessionToken: string) => {
         throw new AppError(status.UNAUTHORIZED, "Invalid Session Token!");
     }
 
+    if (isSessionTokenExist.expiresAt <= new Date()) {
+        throw new AppError(status.UNAUTHORIZED, "Invalid or expired session.");
+    }
+
     const verifiedRefreshToken = jwtUtils.verifyToken(refreshToken, envVars.REFRESH_TOKEN_SECRET)
 
-    if (!verifiedRefreshToken.success && verifiedRefreshToken.error) {
+    if (!verifiedRefreshToken.success) {
         throw new AppError(status.UNAUTHORIZED, "Invalid Refresh Token!");
     }
 
@@ -181,7 +193,7 @@ const getNewToken = async (refreshToken: string, sessionToken: string) => {
         },
         data: {
             token: sessionToken,
-            expiresAt: new Date(Date.now() + 60 * 60 * 60 * 24 * 1000),
+            expiresAt: new Date(Date.now() + SESSION_EXPIRES_IN_MS),
             updatedAt: new Date(),
         }
     });

@@ -4,6 +4,9 @@ import { prisma } from "./prisma";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { UserRole, UserStatus } from "../../generated/prisma/enums";
 
+const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 60;
+export const SESSION_EXPIRES_IN_MS = SESSION_EXPIRES_IN_SECONDS * 1000;
+
 export const auth = betterAuth({
 
     basePath: envVars.BETTER_AUTH_URL,
@@ -45,17 +48,19 @@ export const auth = betterAuth({
             }
         },
     },
-    
+
     emailAndPassword: {
         enabled: true,
     },
 
+    trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:5000", envVars.FRONTEND_URL],
+
     session: {
-        expiresIn: 60 * 60 * 60 * 24,
-        updateAge: 60 * 60 * 60 * 24,
+        expiresIn: SESSION_EXPIRES_IN_SECONDS,
+        updateAge: SESSION_EXPIRES_IN_SECONDS,
         cookieCache: {
             enabled: true,
-            maxAge: 60 * 60 * 60 * 24,
+            maxAge: SESSION_EXPIRES_IN_SECONDS,
         }
     },
 

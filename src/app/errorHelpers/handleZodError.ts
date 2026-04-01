@@ -4,12 +4,12 @@ import status from "http-status"
 
 const handleZodError = (err: z.ZodError): IErrorResponse => {
     const statusCode = status.BAD_REQUEST;
-    const message = "Zod Validation Error";
+    const message = "Validation error.";
     const errorSources: IErrorSource[] = [];
 
     err.issues.forEach(issue => {
         errorSources.push({
-            path: issue.path.join('=>'),
+            path: issue.path.length > 0 ? issue.path.join('.') : 'body',
             message: issue.message
         })
     })

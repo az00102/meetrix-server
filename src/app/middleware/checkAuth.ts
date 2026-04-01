@@ -7,6 +7,31 @@ import status from "http-status";
 import { jwtUtils } from "../utils/jwt";
 import { envVars } from "../../config/env";
 
+const getUserAccessError = (user: {
+    status: UserStatus;
+    isDeleted: boolean;
+}) => {
+    if (user.isDeleted || user.status === UserStatus.DELETED) {
+        return new AppError(status.GONE, "Your account has been deleted.");
+    }
+
+    if (user.status === UserStatus.SUSPENDED) {
+        return new AppError(
+            status.FORBIDDEN,
+            "Your account is suspended. Please contact support.",
+        );
+    }
+
+    if (user.status === UserStatus.INACTIVE) {
+        return new AppError(
+            status.FORBIDDEN,
+            "Your account is inactive. Please contact support.",
+        );
+    }
+
+    return null;
+};
+
 const checkAuth = (...authRoles: UserRole[]) => async (req: Request, res: Response, next: NextFunction) => {
     try {
         const sessionToken = cookieUtils.getCookie(req, 'better-auth.session_token');
@@ -21,19 +46,16 @@ const checkAuth = (...authRoles: UserRole[]) => async (req: Request, res: Respon
             throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! No access token provided.');
         }
 
-        const sessionExist = await prisma.session.findFirst({
+        const sessionExist = await prisma.session.findUnique({
             where: {
                 token: sessionToken,
-                expiresAt: {
-                    gt: new Date(),
-                }
             },
             include: {
                 user: true
             }
         });
 
-        if (!sessionExist || !sessionExist.user) {
+        if (!sessionExist || !sessionExist.user || sessionExist.expiresAt <= new Date()) {
             throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! Invalid or expired session.');
         }
 
@@ -54,28 +76,25 @@ const checkAuth = (...authRoles: UserRole[]) => async (req: Request, res: Respon
         const expiresAt = sessionExist.expiresAt;
         const now = new Date();
 
+        const userAccessError = getUserAccessError(user);
+
+        if (userAccessError) {
+            throw userAccessError;
+        }
+
+        if (authRoles.length > 0 && !authRoles.includes(user.role)) {
+            throw new AppError(status.FORBIDDEN, `Forbidden access! You do not have permission to access this resource. \nRequired role: ${authRoles.join(', ')}\nYour role: ${user.role}`);
+        }
+
         const sessionLifespan = expiresAt.getTime() - createdAt.getTime();
         const timeRemaining = expiresAt.getTime() - now.getTime();
-        const percentageRemaining = (timeRemaining / sessionLifespan) * 100;
+        const percentageRemaining =
+            sessionLifespan > 0 ? (timeRemaining / sessionLifespan) * 100 : 100;
 
         if (percentageRemaining < 20) {
             res.setHeader('X-Session-Refresh', 'true');
             res.setHeader('X-Session-Expires-At', expiresAt.toISOString());
             res.setHeader('X-Time-Remaining', timeRemaining.toString());
-        }
-
-        if (user.status == UserStatus.SUSPENDED) {
-            throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! User is Suspended.');
-        }
-        if (user.status == UserStatus.INACTIVE) {
-            throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! User is Inactive.');
-        }
-        if (user.status == UserStatus.DELETED) {
-            throw new AppError(status.UNAUTHORIZED, 'Unauthorized access! User is Deleted');
-        }
-
-        if (authRoles.length > 0 && !authRoles.includes(user.role)) {
-            throw new AppError(status.FORBIDDEN, `Forbidden access! You do not have permission to access this resource. \nRequired role: ${authRoles.join(', ')}\nYour role: ${user.role}`);
         }
 
         req.user = {

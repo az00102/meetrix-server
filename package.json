@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
+    "seed": "prisma db seed",
     "studio": "prisma studio",
     "push": "prisma db push",
     "pull": "prisma db pull"
@@ -31,7 +32,8 @@
     "http-status": "^2.1.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
-    "qs": "^6.15.0"
+    "qs": "^6.15.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

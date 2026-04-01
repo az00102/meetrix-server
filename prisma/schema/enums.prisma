@@ -1,22 +1,102 @@
 enum UserRole {
-    ADMIN
-    USER
+  ADMIN
+  USER
 }
 
 enum UserStatus {
-    ACTIVE
-    INACTIVE
-    DELETED
-    SUSPENDED
+  ACTIVE
+  INACTIVE
+  DELETED
+  SUSPENDED
 }
 
 enum Gender {
-    MALE
-    FEMALE
-    OTHER
+  MALE
+  FEMALE
+  OTHER
 }
 
 enum PaymentStatus {
-    PAID
-    UNPAID
+  PENDING
+  PAID
+  UNPAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum EventVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum EventPricingType {
+  FREE
+  PAID
+}
+
+enum EventLocationType {
+  ONLINE
+  OFFLINE
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum ParticipationJoinType {
+  DIRECT
+  REQUEST
+  INVITED
+}
+
+enum ParticipantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BANNED
+  CANCELLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  SSLCOMMERZ
+  SHURJOPAY
+  MANUAL
+}
+
+enum PaymentPurpose {
+  EVENT_REGISTRATION
+  INVITATION_ACCEPTANCE
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+  DELETED
+}
+
+enum NotificationType {
+  SYSTEM
+  EVENT_INVITATION
+  INVITATION_ACCEPTED
+  INVITATION_DECLINED
+  JOIN_REQUEST
+  JOIN_APPROVED
+  JOIN_REJECTED
+  PARTICIPANT_BANNED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  EVENT_UPDATED
+  EVENT_CANCELLED
 }

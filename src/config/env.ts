@@ -12,6 +12,7 @@ interface EnvConfig {
     REFRESH_TOKEN_SECRET: string;
     ACCESS_TOKEN_EXPIRATION: string;
     REFRESH_TOKEN_EXPIRATION: string;
+    FRONTEND_URL: string
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -26,6 +27,7 @@ const loadEnvVariables = (): EnvConfig => {
         "REFRESH_TOKEN_SECRET",
         "ACCESS_TOKEN_EXPIRATION",
         "REFRESH_TOKEN_EXPIRATION",
+        "FRONTEND_URL",
     ];
 
     requiredEnvVars.forEach((variable) => {
@@ -44,6 +46,7 @@ const loadEnvVariables = (): EnvConfig => {
         REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
         ACCESS_TOKEN_EXPIRATION: process.env.ACCESS_TOKEN_EXPIRATION as string,
         REFRESH_TOKEN_EXPIRATION: process.env.REFRESH_TOKEN_EXPIRATION as string,
+        FRONTEND_URL: process.env.FRONTEND_URL as string
     }
 }
 
