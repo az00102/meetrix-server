@@ -117,9 +117,53 @@ const logoutUserController = catchAsync(
     }
 );
 
+const getMeController = catchAsync(
+    async (req: Request, res: Response) => {
+        const currentUser = req.currentUser;
+
+        if (!currentUser) {
+            throw new AppError(status.UNAUTHORIZED, "Unauthorized access.");
+        }
+
+        const result = await AuthServices.getMe(currentUser);
+
+        sendResponse(res, {
+            responseStatus: status.OK,
+            success: true,
+            responseMessage: "User data fetched successfully.",
+            data: result
+        })
+
+    }
+)
+
+const updateMeController = catchAsync(
+    async (req: Request, res: Response) => {
+        const currentUser = req.currentUser;
+
+        if (!currentUser) {
+            throw new AppError(status.UNAUTHORIZED, "Unauthorized access.");
+        }
+
+        const result = await AuthServices.updateMe(currentUser, req.body);
+
+        tokenUtils.setAccessTokenCookie(res, result.accessToken);
+        tokenUtils.setRefreshTokenCookie(res, result.refreshToken);
+
+        sendResponse(res, {
+            responseStatus: status.OK,
+            success: true,
+            responseMessage: "Profile updated successfully.",
+            data: result.user,
+        });
+    },
+)
+
 export const AuthControllers = {
     registerUserController,
     loginUserController,
     getNewTokenController,
     logoutUserController,
+    getMeController,
+    updateMeController,
 }

@@ -2,12 +2,92 @@ import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import status from "http-status";
 import { envVars } from "../../../config/env";
-import { ILoginPayload, IUserRegistrationPayload } from "./auth.inteface";
+import {
+    ILoginPayload,
+    IUserRegistrationPayload,
+} from "./auth.inteface";
 import AppError from "../../errorHelpers/AppError";
 import { tokenUtils } from "../../utils/token";
 import { jwtUtils } from "../../utils/jwt";
 import { JWTPayload } from "better-auth";
+import { Prisma } from "../../../generated/prisma/client";
+import { ICurrentUserProfile } from "../../interfaces/interfaces";
+import { TUpdateMePayload } from "./auth.validation";
 
+const userProfileSelect = {
+    id: true,
+    name: true,
+    email: true,
+    emailVerified: true,
+    image: true,
+    createdAt: true,
+    updatedAt: true,
+    role: true,
+    status: true,
+    phone: true,
+    bio: true,
+    isDeleted: true,
+} as const;
+
+const buildTokenPayload = (user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    status: string;
+    isDeleted: boolean;
+    emailVerified: boolean;
+}) => ({
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    status: user.status,
+    isDeleted: user.isDeleted,
+    emailVerified: user.emailVerified,
+});
+
+const formatUserProfile = (user: {
+    id: string;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    image: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    role: string;
+    status: string;
+    phone: string | null;
+    bio: string | null;
+    isDeleted: boolean;
+}) => {
+    const { isDeleted, ...profile } = user;
+
+    return profile;
+};
+
+const ensureUserCanAccessAccount = (user: {
+    status: string;
+    isDeleted: boolean;
+}) => {
+    if (user.status === "SUSPENDED") {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Your account is suspended. Please contact support.",
+        );
+    }
+
+    if (user.status === "INACTIVE") {
+        throw new AppError(
+            status.FORBIDDEN,
+            "Your account is inactive. Please contact support.",
+        );
+    }
+
+    if (user.isDeleted || user.status === "DELETED") {
+        throw new AppError(status.GONE, "Your account is deleted.");
+    }
+};
 
 const registerUser = async (payload: IUserRegistrationPayload) => {
     const data = await auth.api.signUpEmail({
@@ -22,25 +102,11 @@ const registerUser = async (payload: IUserRegistrationPayload) => {
         throw new AppError(status.BAD_REQUEST, "Failed to register user");
     }
 
-    const accessToken = tokenUtils.getAccessToken({
-        userId: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        role: data.user.role,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified
-    })
+    const tokenPayload = buildTokenPayload(data.user);
 
-    const refreshToken = tokenUtils.getRefreshToken({
-        userId: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        role: data.user.role,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified
-    })
+    const accessToken = tokenUtils.getAccessToken(tokenPayload)
+
+    const refreshToken = tokenUtils.getRefreshToken(tokenPayload)
 
     return {
         accessToken,
@@ -57,33 +123,13 @@ const loginUser = async (payload: ILoginPayload) => {
         }
     })
 
-    if (data.user.status === "SUSPENDED") {
-        throw new AppError(status.FORBIDDEN, "Your account is suspended. Please contact support.");
-    }
+    ensureUserCanAccessAccount(data.user);
 
-    if (data.user.isDeleted || data.user.status === "DELETED") {
-        throw new AppError(status.GONE, "Your account is deleted.");
-    }
+    const tokenPayload = buildTokenPayload(data.user);
 
-    const accessToken = tokenUtils.getAccessToken({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        role: data.user.role,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified
-    })
+    const accessToken = tokenUtils.getAccessToken(tokenPayload)
 
-    const refreshToken = tokenUtils.getRefreshToken({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.name,
-        role: data.user.role,
-        status: data.user.status,
-        isDeleted: data.user.isDeleted,
-        emailVerified: data.user.emailVerified
-    })
+    const refreshToken = tokenUtils.getRefreshToken(tokenPayload)
 
     return {
         accessToken,
@@ -114,25 +160,20 @@ const getNewToken = async (refreshToken: string, sessionToken: string) => {
 
     const data = verifiedRefreshToken.data as JWTPayload;
 
-    const newAccessToken = tokenUtils.getAccessToken({
-        userId: data.userId,
-        role: data.role,
-        name: data.name,
-        email: data.email,
-        status: data.status,
-        isDeleted: data.isDeleted,
-        emailVerified: data.emailVerified,
-    });
+    if (data.userId !== isSessionTokenExist.userId) {
+        throw new AppError(
+            status.UNAUTHORIZED,
+            "Refresh token does not match the active session.",
+        );
+    }
 
-    const newRefreshToken = tokenUtils.getRefreshToken({
-        userId: data.userId,
-        role: data.role,
-        name: data.name,
-        email: data.email,
-        status: data.status,
-        isDeleted: data.isDeleted,
-        emailVerified: data.emailVerified,
-    });
+    ensureUserCanAccessAccount(isSessionTokenExist.user);
+
+    const tokenPayload = buildTokenPayload(isSessionTokenExist.user);
+
+    const newAccessToken = tokenUtils.getAccessToken(tokenPayload);
+
+    const newRefreshToken = tokenUtils.getRefreshToken(tokenPayload);
 
     const { token } = await prisma.session.update({
         where: {
@@ -153,6 +194,10 @@ const getNewToken = async (refreshToken: string, sessionToken: string) => {
 }
 
 const logoutUser = async (sessionToken: string) => {
+    if (!sessionToken) {
+        throw new AppError(status.UNAUTHORIZED, "Session token is missing.");
+    }
+
     const result = await auth.api.signOut({
         headers: {
             Authorization: `Bearer ${sessionToken}`
@@ -162,9 +207,52 @@ const logoutUser = async (sessionToken: string) => {
     return result;
 }
 
+const getMe = async (currentUser: ICurrentUserProfile) => {
+    return formatUserProfile(currentUser);
+}
+
+const updateMe = async (
+    currentUser: ICurrentUserProfile,
+    payload: TUpdateMePayload,
+) => {
+    ensureUserCanAccessAccount(currentUser);
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: {
+                id: currentUser.id,
+            },
+            data: payload,
+            select: userProfileSelect,
+        });
+
+        const tokenPayload = buildTokenPayload(updatedUser);
+        const accessToken = tokenUtils.getAccessToken(tokenPayload);
+        const refreshToken = tokenUtils.getRefreshToken(tokenPayload);
+
+        return {
+            user: formatUserProfile(updatedUser),
+            accessToken,
+            refreshToken,
+        };
+    } catch (error) {
+        if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2025"
+        ) {
+            throw new AppError(status.NOT_FOUND, "User Not Found!");
+        }
+
+        throw error;
+    }
+}
+
+
 export const AuthServices = {
     registerUser,
     loginUser,
     getNewToken,
     logoutUser,
+    getMe,
+    updateMe,
 }
