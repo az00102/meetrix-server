@@ -12,7 +12,11 @@ interface EnvConfig {
     REFRESH_TOKEN_SECRET: string;
     ACCESS_TOKEN_EXPIRATION: string;
     REFRESH_TOKEN_EXPIRATION: string;
-    FRONTEND_URL: string
+    FRONTEND_URL: string;
+    BACKEND_URL: string;
+    SSLCOMMERZ_STORE_ID?: string;
+    SSLCOMMERZ_STORE_PASSWORD?: string;
+    SSLCOMMERZ_IS_SANDBOX: boolean;
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -46,8 +50,14 @@ const loadEnvVariables = (): EnvConfig => {
         REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
         ACCESS_TOKEN_EXPIRATION: process.env.ACCESS_TOKEN_EXPIRATION as string,
         REFRESH_TOKEN_EXPIRATION: process.env.REFRESH_TOKEN_EXPIRATION as string,
-        FRONTEND_URL: process.env.FRONTEND_URL as string
-    }
+        FRONTEND_URL: process.env.FRONTEND_URL as string,
+        BACKEND_URL: process.env.BACKEND_URL ?? (process.env.BETTER_AUTH_URL as string),
+        SSLCOMMERZ_STORE_ID: process.env.SSLCOMMERZ_STORE_ID,
+        SSLCOMMERZ_STORE_PASSWORD: process.env.SSLCOMMERZ_STORE_PASSWORD,
+        SSLCOMMERZ_IS_SANDBOX:
+            (process.env.SSLCOMMERZ_IS_SANDBOX ?? "true").toLowerCase() !==
+            "false",
+    };
 }
 
 export const envVars = loadEnvVariables();
