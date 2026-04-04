@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import { UserRole, UserStatus } from "../../generated/prisma/enums";
 import { cookieUtils } from "../utils/cookie";
 import AppError from "../errorHelpers/AppError";
@@ -32,7 +32,25 @@ const getUserAccessError = (user: {
     return null;
 };
 
-const checkAuth = (...authRoles: UserRole[]) => async (req: Request, res: Response, next: NextFunction) => {
+const checkAuth = <
+    TParams extends Request["params"] = Request["params"],
+    TResponseBody = unknown,
+    TRequestBody = unknown,
+    TRequestQuery = Request["query"],
+    TLocals extends Record<string, unknown> = Record<string, unknown>,
+>(
+    ...authRoles: UserRole[]
+): RequestHandler<
+    TParams,
+    TResponseBody,
+    TRequestBody,
+    TRequestQuery,
+    TLocals
+> => async (
+    req: Request<TParams, TResponseBody, TRequestBody, TRequestQuery, TLocals>,
+    res: Response<TResponseBody, TLocals>,
+    next: NextFunction,
+) => {
     try {
         const sessionToken = cookieUtils.getCookie(req, 'better-auth.session_token');
         const accessToken = cookieUtils.getCookie(req, 'accessToken');
